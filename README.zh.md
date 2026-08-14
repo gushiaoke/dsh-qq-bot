@@ -12,6 +12,38 @@ Access Token 有效期为 2 小时；`QqBotClient` 会缓存并在到期前 60 �
 
 配置 `inbound: true` 时，本包会启动一条出站的 WebSocket 网关连接（`QqBotGateway`）。它将每个 QQ 单聊 / 群聊映射到一个专属 agent 会话，把入站的 `C2C_MESSAGE_CREATE` / `GROUP_AT_MESSAGE_CREATE` 文本经 `followup` 灌入，并把该轮最终提交的 assistant 文本回推给发送者。鉴权复用同一对 AppID/AppSecret——Identify 的 `token` 为 `QQBot <access_token>`，intents 为 `1 << 25`——因为网关是出站连接，无需公网回调地址。
 
+## 安装
+
+前置条件：已安装 `dsh`（`dsh` 命令在 `PATH` 中），且目标 profile 的 bundles 提供 `ctx.tools` 与 `ctx.agents` 服务（`@deepseek-ai/dsh-base` 两者都提供；`dsh plugin` 首次使用时会将其初始化为默认 bundle）。
+
+1. 将插件添加到某个 profile：
+
+```sh
+dsh plugin --profile <名字> add github:gushiaoke/dsh-qq-bot
+```
+
+2. 挂载：在 profile 的补丁层 `~/.dsh/profiles/<名字>/cordis.patch.yml` 追加一条 `insert` 条目：
+
+```yaml
+- insert:
+    - id: qq-bot
+      name: 'dsh-qq-bot'
+      config:
+        appId: !!js process.env.QQBOT_APP_ID ?? ''
+        appSecret: !!js process.env.QQBOT_APP_SECRET ?? ''
+        inbound: true
+        inboundProvider: deepseek-official
+        inboundModel: deepseek-v4-flash
+        inboundFormat: markdown
+        inboundCwd: /absolute/working/directory
+```
+
+3. 配置凭证（见下文「凭证」章节）并启动：
+
+```sh
+dsh --profile <名字>
+```
+
 ## 凭证（AppID + AppSecret）
 
 在 [QQ 机器人开发者后台](https://q.qq.com/#/apps) 创建机器人，复制其 **AppID**（机器人 ID）和 **AppSecret**（密钥）。旧的 `Token` 凭证已废弃，无需配置。
@@ -45,20 +77,7 @@ config:
   appSecret: '<你的-app-secret>'
 ```
 
-使用方式一或二时，在 `cordis.yml` 里用 `!!js process.env.…` 引用，密钥不会落盘：
-
-```yaml
-- id: qq-bot
-  name: 'dsh-qq-bot'
-  config:
-    appId: !!js process.env.QQBOT_APP_ID ?? ''
-    appSecret: !!js process.env.QQBOT_APP_SECRET ?? ''
-    inbound: true
-    inboundProvider: deepseek-official
-    inboundModel: deepseek-v4-flash
-    inboundFormat: markdown
-    inboundCwd: /absolute/working/directory
-```
+使用方式一或二时，在 profile 的 `cordis.patch.yml` 里用 `!!js process.env.QQBOT_APP_ID ?? ''` 引用，密钥不会落盘——完整的挂载条目见上文「安装」章节。
 
 ## 配置
 

@@ -12,6 +12,38 @@ The Access Token lives 2 hours; `QqBotClient` caches it and refreshes within a 6
 
 With `inbound: true`, the package starts an outbound WebSocket gateway connection (`QqBotGateway`). It maps each QQ single chat / group to a dedicated agent session, feeds inbound `C2C_MESSAGE_CREATE` / `GROUP_AT_MESSAGE_CREATE` text through `followup`, and replies the turn's committed assistant text back to the sender. Authentication uses the same AppID/AppSecret — Identify `token` is `QQBot <access_token>` with intents `1 << 25` — and needs no public callback address because the gateway is an outbound connection.
 
+## Installation
+
+Prerequisites: a `dsh` installation with the `dsh` CLI on `PATH`, plus a profile whose bundles provide the `ctx.tools` and `ctx.agents` services (`@deepseek-ai/dsh-base` provides both; `dsh plugin` initializes it as the default bundle on first use).
+
+1. Add the plugin to a profile:
+
+```sh
+dsh plugin --profile <name> add github:gushiaoke/dsh-qq-bot
+```
+
+2. Mount it by appending an `insert` entry to the profile's patch layer `~/.dsh/profiles/<name>/cordis.patch.yml`:
+
+```yaml
+- insert:
+    - id: qq-bot
+      name: 'dsh-qq-bot'
+      config:
+        appId: !!js process.env.QQBOT_APP_ID ?? ''
+        appSecret: !!js process.env.QQBOT_APP_SECRET ?? ''
+        inbound: true
+        inboundProvider: deepseek-official
+        inboundModel: deepseek-v4-flash
+        inboundFormat: markdown
+        inboundCwd: /absolute/working/directory
+```
+
+3. Supply the credentials (see Credentials below) and start:
+
+```sh
+dsh --profile <name>
+```
+
 ## Credentials (AppID + AppSecret)
 
 Create a bot at the [QQ Bot developer console](https://q.qq.com/#/apps) and copy its **AppID** (bot id) and **AppSecret** (client secret). The legacy `Token` credential is deprecated and not used.
@@ -45,20 +77,7 @@ config:
   appSecret: '<your-app-secret>'
 ```
 
-When using options 1 or 2, reference them from `cordis.yml` with `!!js process.env.…` so the values are never written to disk:
-
-```yaml
-- id: qq-bot
-  name: 'dsh-qq-bot'
-  config:
-    appId: !!js process.env.QQBOT_APP_ID ?? ''
-    appSecret: !!js process.env.QQBOT_APP_SECRET ?? ''
-    inbound: true
-    inboundProvider: deepseek-official
-    inboundModel: deepseek-v4-flash
-    inboundFormat: markdown
-    inboundCwd: /absolute/working/directory
-```
+When using options 1 or 2, reference the credentials from the profile's `cordis.patch.yml` with `!!js process.env.QQBOT_APP_ID ?? ''` so the secret never lands on disk — the full mount entry is shown under Installation above.
 
 ## Config
 
